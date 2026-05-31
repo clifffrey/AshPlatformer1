@@ -4,6 +4,7 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const messageEl = document.getElementById("message");
 const healthEl = document.getElementById("health");
+const specialEl = document.getElementById("special");
 const level2Button = document.getElementById("level2");
 const level3Button = document.getElementById("level3");
 const level4Button = document.getElementById("level4");
@@ -29,7 +30,7 @@ const SHOOTER_COOLDOWN = 230;
 const WALL_TRAP_PROJECTILE_SPEED = 2.1;
 const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
-const SPECIAL_CHARGE_FRAMES = 180;
+const SPECIAL_CHARGE_FRAMES = 60;
 const SPECIAL_COOLDOWN_FRAMES = 300;
 
 // Input and animation state that exists outside a single game reset.
@@ -896,6 +897,15 @@ function draw() {
   // Keep the HTML status text in sync with the current game state.
   messageEl.textContent = game.message;
   healthEl.textContent = `${levels[currentLevelIndex].name} | Health ${Math.max(0, player.health)} | Boss ${Math.max(0, boss.health)}`;
+  if (!specialWeaponUnlocked) {
+    specialEl.textContent = "Special locked";
+  } else if (specialCharging) {
+    specialEl.textContent = `Special charging ${Math.ceil(specialChargeTimer / 60)}s`;
+  } else if (specialCooldown > 0) {
+    specialEl.textContent = `Special cooldown ${Math.ceil(specialCooldown / 60)}s`;
+  } else {
+    specialEl.textContent = "Special ready";
+  }
 }
 
 // Main animation loop. requestAnimationFrame calls this around 60 times per

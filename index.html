@@ -14,7 +14,7 @@
           <span>Move: Arrow keys / A D positions</span>
           <span>Jump: Space / W position / Up</span>
           <span>Sword: J position</span>
-          <span>Special: hold K 3s, 5s cooldown</span>
+          <span>Special: hold K 1s, 5s cooldown</span>
           <span>Down attack/pogo: hold Down + Sword from Level 3</span>
         </div>
         <div class="actions">
@@ -30,10 +30,13 @@
 
       <section class="status" aria-live="polite">
         <span id="message">Start top-left, work around the level, and defeat the boss at bottom-right.</span>
-        <span id="health"></span>
+        <span class="readout">
+          <span id="health"></span>
+          <span id="special"></span>
+        </span>
       </section>
     </main>
 
-    <script src="game.js?v=59"></script>
+    <script src="game.js?v=60"></script>
   </body>
 </html>

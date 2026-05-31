@@ -84,8 +84,21 @@ canvas {
   font-size: 15px;
 }
 
-#health {
+.readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+
+#health,
+#special {
   white-space: nowrap;
+}
+
+#special {
+  color: #9fb0bf;
+  font-size: 13px;
 }
 
 @media (max-width: 700px) {
@@ -97,5 +110,9 @@ canvas {
   .status {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .readout {
+    align-items: flex-start;
   }
 }
