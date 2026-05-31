@@ -120,12 +120,6 @@ const levels = [
       { x: 690, y: 182, w: 28, h: 36, left: 150, right: 840, vx: -1.2, alive: true, shooter: true, shootCooldown: 80 },
       { x: 770, y: 472, w: 28, h: 36, left: 620, right: 856, vx: 1.15, alive: true },
     ],
-    pressurePlates: [
-      { x: 700, y: 336, w: 50, h: 8, triggered: false, shooterIndex: 0 },
-    ],
-    wallShooters: [
-      { x: 912, y: 270 },
-    ],
     boss: {
       x: 290,
       y: 456,
@@ -174,9 +168,8 @@ const levels = [
       { x: 575, y: 394, w: 28, h: 36, left: 210, right: 630, vx: -1.15, alive: true },
     ],
     pressurePlates: [
-      { x: 704, y: 76, w: 50, h: 8, triggered: false, shooterIndex: 1 },
       { x: 790, y: 188, w: 50, h: 8, triggered: false, shooterIndex: 1 },
-      { x: 426, y: 422, w: 50, h: 8, triggered: false, shooterIndex: 0 },
+      { x: 426, y: 312, w: 50, h: 8, triggered: false, shooterIndex: 0 },
     ],
     wallShooters: [
       { x: 78, y: 395 },
