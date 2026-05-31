@@ -33,6 +33,7 @@ let attackRequested = false;
 let lastTime = 0;
 let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
+let pogoUnlocked = false;
 let game;
 
 function isHolding(...bindings) {
@@ -245,10 +246,12 @@ function resetGame() {
 // Clears all checkpoint progress and starts from the beginning.
 function newGame() {
   checkpointLevelIndex = 0;
+  pogoUnlocked = false;
   startLevel(0);
 }
 
 function completeLevel() {
+  if (currentLevelIndex === 1) pogoUnlocked = true;
   if (currentLevelIndex < levels.length - 1) {
     checkpointLevelIndex = currentLevelIndex + 1;
     startLevel(checkpointLevelIndex);
@@ -291,7 +294,7 @@ function isOnLadder(entity) {
 
 // The player's sword is a short rectangle that appears only while attackTimer
 // is active. Side attacks extend horizontally; down attacks extend below the
-// player and can bounce the player upward after a hit.
+// player. Downward hits bounce only after that ability is unlocked.
 function attackBox(player) {
   if (player.attackTimer <= 0) return null;
   if (player.attackMode === "down") {
@@ -606,7 +609,7 @@ function updateCombat() {
     }
   }
 
-  if (downAttackHit && game.state === "playing") {
+  if (downAttackHit && pogoUnlocked && game.state === "playing") {
     game.player.vy = -DOWN_ATTACK_BOUNCE;
     game.player.grounded = false;
     game.player.jumpCooldown = LANDING_JUMP_COOLDOWN;
@@ -817,6 +820,7 @@ window.__platformerState = () => ({
   state: game.state,
   level: currentLevelIndex + 1,
   checkpointLevel: checkpointLevelIndex + 1,
+  pogoUnlocked,
   player: {
     x: Math.round(game.player.x),
     y: Math.round(game.player.y),
