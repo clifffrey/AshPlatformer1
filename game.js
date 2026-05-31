@@ -167,12 +167,6 @@ const levels = [
       { x: 275, y: 284, w: 28, h: 36, left: 90, right: 690, vx: 1.25, alive: true },
       { x: 575, y: 394, w: 28, h: 36, left: 210, right: 630, vx: -1.15, alive: true },
     ],
-    pressurePlates: [
-      { x: 790, y: 188, w: 50, h: 8, triggered: false, shooterIndex: 0 },
-    ],
-    wallShooters: [
-      { x: 912, y: 145 },
-    ],
     boss: {
       x: 145,
       y: 456,
