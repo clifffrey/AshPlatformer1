@@ -28,6 +28,7 @@ const PROJECTILE_RADIUS = 8;
 const SHOOTER_COOLDOWN = 230;
 const WALL_TRAP_PROJECTILE_SPEED = 2.1;
 const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
+const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -207,7 +208,7 @@ const levels = [
       { x: 170, y: 284, w: 30, h: 16 },
       { x: 315, y: 404, w: 32, h: 16 },
       { x: 515, y: 404, w: 32, h: 16 },
-      { x: 610, y: 492, w: 34, h: 16 },
+      { x: 40, y: 492, w: 34, h: 16 },
     ],
     enemies: [
       { x: 425, y: 48, w: 28, h: 36, left: 300, right: 720, vx: 1.25, alive: true },
@@ -227,6 +228,8 @@ const levels = [
       invincible: 0,
       swordAngle: 0.8,
       swordMode: "side",
+      swordSide: -1,
+      swordSideTimer: BOSS_SIDE_SWORD_SWAP_FRAMES,
       alive: true,
     },
   },
@@ -373,7 +376,7 @@ function bossSwordBox() {
   const centerX = boss.x + boss.w / 2;
   const centerY = boss.y + boss.h / 2;
   if (boss.swordMode === "side") {
-    const direction = boss.vx >= 0 ? 1 : -1;
+    const direction = boss.swordSide || 1;
     return {
       x1: centerX,
       y1: centerY,
@@ -596,7 +599,15 @@ function updateEnemies() {
   if (boss.alive) {
     // Most bosses rotate their sword; Level 4 uses a side-snapping sword.
     boss.x += boss.vx;
-    if (boss.swordMode !== "side") boss.swordAngle += 0.035;
+    if (boss.swordMode === "side") {
+      boss.swordSideTimer = Math.max(0, (boss.swordSideTimer || BOSS_SIDE_SWORD_SWAP_FRAMES) - 1);
+      if (boss.swordSideTimer === 0) {
+        boss.swordSide = -(boss.swordSide || 1);
+        boss.swordSideTimer = BOSS_SIDE_SWORD_SWAP_FRAMES;
+      }
+    } else {
+      boss.swordAngle += 0.035;
+    }
     boss.invincible = Math.max(0, boss.invincible - 1);
     if (boss.x < boss.left || boss.x + boss.w > boss.right) {
       boss.vx *= -1;
