@@ -6,6 +6,7 @@ const messageEl = document.getElementById("message");
 const healthEl = document.getElementById("health");
 const level2Button = document.getElementById("level2");
 const level3Button = document.getElementById("level3");
+const level4Button = document.getElementById("level4");
 const newGameButton = document.getElementById("new-game");
 const restartButton = document.getElementById("restart");
 
@@ -181,6 +182,53 @@ const levels = [
       alive: true,
     },
   },
+  {
+    name: "Level 4",
+    message: "Level 4: final arena. Use pogo, avoid the shooters, and finish the prototype.",
+    playerStart: { x: 54, y: 38 },
+    platforms: [
+      { x: 0, y: 508, w: 960, h: 32 },
+      { x: 0, y: 0, w: 28, h: 508 },
+      { x: 34, y: 84, w: 760, h: 18 },
+      { x: 922, y: 84, w: 38, h: 424 },
+      { x: 130, y: 186, w: 570, h: 18 },
+      { x: 700, y: 186, w: 120, h: 322 },
+      { x: 28, y: 300, w: 42, h: 208 },
+      { x: 70, y: 300, w: 640, h: 18 },
+      { x: 250, y: 420, w: 470, h: 18 },
+    ],
+    ladders: [],
+    spikes: [
+      { x: 585, y: 176, w: 20, h: 10 },
+      { x: 430, y: 176, w: 20, h: 10 },
+      { x: 250, y: 176, w: 20, h: 10 },
+      { x: 565, y: 284, w: 30, h: 16 },
+      { x: 375, y: 284, w: 30, h: 16 },
+      { x: 170, y: 284, w: 30, h: 16 },
+      { x: 315, y: 404, w: 32, h: 16 },
+      { x: 515, y: 404, w: 32, h: 16 },
+      { x: 748, y: 492, w: 34, h: 16 },
+    ],
+    enemies: [
+      { x: 425, y: 48, w: 28, h: 36, left: 300, right: 720, vx: 1.25, alive: true },
+      { x: 650, y: 150, w: 28, h: 36, left: 240, right: 800, vx: -1.3, alive: true, shooter: true, shootCooldown: 95 },
+      { x: 260, y: 264, w: 28, h: 36, left: 90, right: 660, vx: 1.3, alive: true },
+      { x: 575, y: 384, w: 28, h: 36, left: 270, right: 690, vx: -1.2, alive: true, shooter: true, shootCooldown: 150 },
+    ],
+    boss: {
+      x: 790,
+      y: 456,
+      w: 64,
+      h: 52,
+      left: 650,
+      right: 880,
+      vx: 1.85,
+      health: 6,
+      invincible: 0,
+      swordAngle: 0.8,
+      alive: true,
+    },
+  },
 ];
 
 // These arrays point at the active level data after startLevel copies it.
@@ -253,12 +301,15 @@ function completeLevel() {
     game.boss.alive = false;
     game.state = "transition";
     game.transitionTimer = LEVEL_UNLOCK_TRANSITION_FRAMES;
-    game.message = `${levels[pendingLevelIndex].name} unlocked.`;
+    game.message =
+      levels[pendingLevelIndex].name === "Level 4"
+        ? "Get ready for Level 4."
+        : `${levels[pendingLevelIndex].name} unlocked.`;
     return;
   }
   game.boss.alive = false;
   game.state = "won";
-  game.message = "Final boss defeated. You cleared all three prototype levels.";
+  game.message = "Final boss defeated. You cleared all four prototype levels.";
 }
 
 // Axis-aligned rectangle overlap. This is the basic collision test used for
@@ -828,6 +879,12 @@ level2Button.addEventListener("click", () => {
 level3Button.addEventListener("click", () => {
   checkpointLevelIndex = 2;
   startLevel(2);
+});
+
+// Testing shortcut: jump straight to level 4 with full health.
+level4Button.addEventListener("click", () => {
+  checkpointLevelIndex = 3;
+  startLevel(3);
 });
 
 // Tiny debug hook used by browser smoke tests. It is not needed for gameplay.
