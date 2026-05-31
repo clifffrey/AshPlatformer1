@@ -99,6 +99,7 @@ canvas {
 #special {
   color: #9fb0bf;
   font-size: 13px;
+  text-align: right;
 }
 
 @media (max-width: 700px) {
