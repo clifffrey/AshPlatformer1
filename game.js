@@ -29,6 +29,8 @@ const SHOOTER_COOLDOWN = 230;
 const WALL_TRAP_PROJECTILE_SPEED = 2.1;
 const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
+const SPECIAL_CHARGE_FRAMES = 180;
+const SPECIAL_COOLDOWN_FRAMES = 300;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -39,6 +41,9 @@ let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let pogoUnlocked = false;
 let specialWeaponUnlocked = false;
+let specialCharging = false;
+let specialChargeTimer = 0;
+let specialCooldown = 0;
 let pendingLevelIndex = null;
 let transitionMessages = [];
 let game;
@@ -299,6 +304,9 @@ function newGame() {
   checkpointLevelIndex = 0;
   pogoUnlocked = false;
   specialWeaponUnlocked = false;
+  specialCharging = false;
+  specialChargeTimer = 0;
+  specialCooldown = 0;
   transitionMessages = [];
   startLevel(0);
 }
@@ -545,6 +553,15 @@ function updatePlayer() {
   player.attackTimer = Math.max(0, player.attackTimer - 1);
   player.invincible = Math.max(0, player.invincible - 1);
   player.jumpCooldown = Math.max(0, player.jumpCooldown - 1);
+  specialCooldown = Math.max(0, specialCooldown - 1);
+  if (specialCharging) {
+    specialChargeTimer = Math.max(0, specialChargeTimer - 1);
+    if (specialChargeTimer === 0) {
+      attackRequested = true;
+      requestedAttackType = "special";
+      specialCharging = false;
+    }
+  }
 
   // Attacks are triggered by a fresh keydown, not by holding the key.
   if (attackRequested && player.attackCooldown === 0) {
@@ -556,6 +573,7 @@ function updatePlayer() {
         : pogoUnlocked && !player.grounded && down
           ? "down"
           : "side";
+    if (player.attackMode === "special") specialCooldown = SPECIAL_COOLDOWN_FRAMES;
   }
   attackRequested = false;
   requestedAttackType = "normal";
@@ -907,9 +925,15 @@ window.addEventListener("keydown", (event) => {
     attackRequested = true;
     requestedAttackType = "normal";
   }
-  if ((code === "KeyK" || key === "k") && specialWeaponUnlocked && !event.repeat) {
-    attackRequested = true;
-    requestedAttackType = "special";
+  if (
+    (code === "KeyK" || key === "k") &&
+    specialWeaponUnlocked &&
+    specialCooldown === 0 &&
+    !specialCharging &&
+    !event.repeat
+  ) {
+    specialCharging = true;
+    specialChargeTimer = SPECIAL_CHARGE_FRAMES;
   }
   keys.add(code);
   keys.add(key);
@@ -917,6 +941,10 @@ window.addEventListener("keydown", (event) => {
 
 // Release held movement keys.
 window.addEventListener("keyup", (event) => {
+  if (event.code === "KeyK" || event.key.toLowerCase() === "k") {
+    specialCharging = false;
+    specialChargeTimer = 0;
+  }
   keys.delete(event.code);
   keys.delete(event.key.toLowerCase());
 });
@@ -952,6 +980,9 @@ window.__platformerState = () => ({
   checkpointLevel: checkpointLevelIndex + 1,
   pogoUnlocked,
   specialWeaponUnlocked,
+  specialCharging,
+  specialChargeTimer,
+  specialCooldown,
   pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
     x: Math.round(game.player.x),
