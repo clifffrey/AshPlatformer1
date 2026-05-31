@@ -4,7 +4,7 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 const messageEl = document.getElementById("message");
 const healthEl = document.getElementById("health");
-const specialEl = document.getElementById("special");
+const abilityEl = document.getElementById("ability");
 const level2Button = document.getElementById("level2");
 const level3Button = document.getElementById("level3");
 const level4Button = document.getElementById("level4");
@@ -31,7 +31,6 @@ const WALL_TRAP_PROJECTILE_SPEED = 2.1;
 const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
 const BOSS_SIDE_SWORD_PAUSE_FRAMES = 24;
-const SPECIAL_COOLDOWN_FRAMES = 300;
 const SHIELD_ACTIVE_FRAMES = 36;
 const SHIELD_COUNTER_FRAMES = 14;
 const SHIELD_CONE_LENGTH = 118;
@@ -40,14 +39,11 @@ const SHIELD_COOLDOWN_FRAMES = 300;
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
 let attackRequested = false;
-let requestedAttackType = "normal";
 let lastTime = 0;
 let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let pogoUnlocked = false;
-let specialWeaponUnlocked = false;
 let shieldUnlocked = false;
-let specialCooldown = 0;
 let shieldCooldown = 0;
 let shieldRequested = false;
 let pendingLevelIndex = null;
@@ -315,9 +311,7 @@ function resetGame() {
 function newGame() {
   checkpointLevelIndex = 0;
   pogoUnlocked = false;
-  specialWeaponUnlocked = false;
   shieldUnlocked = false;
-  specialCooldown = 0;
   shieldCooldown = 0;
   shieldRequested = false;
   transitionMessages = [];
@@ -328,11 +322,10 @@ function completeLevel() {
   if (currentLevelIndex < levels.length - 1) {
     checkpointLevelIndex = currentLevelIndex + 1;
     pendingLevelIndex = checkpointLevelIndex;
-    if (currentLevelIndex === 0) specialWeaponUnlocked = true;
     if (currentLevelIndex === 2) shieldUnlocked = true;
     transitionMessages =
       currentLevelIndex === 0
-        ? ["Special weapon unlocked.", `${levels[pendingLevelIndex].name} unlocked.`]
+        ? [`${levels[pendingLevelIndex].name} unlocked.`]
         : currentLevelIndex === 2
           ? ["Shield counter unlocked.", "Get ready for Level 4."]
         : [
@@ -393,15 +386,6 @@ function attackBox(player) {
       w: player.w + 24,
       h: 44,
       mode: "down",
-    };
-  }
-  if (player.attackMode === "special") {
-    return {
-      x: player.facing > 0 ? player.x + player.w : player.x - 70,
-      y: player.y + 15,
-      w: 70,
-      h: 10,
-      mode: "special",
     };
   }
   return {
@@ -617,7 +601,6 @@ function updatePlayer() {
   player.jumpCooldown = Math.max(0, player.jumpCooldown - 1);
   player.shieldTimer = Math.max(0, player.shieldTimer - 1);
   player.shieldCounterTimer = Math.max(0, player.shieldCounterTimer - 1);
-  specialCooldown = Math.max(0, specialCooldown - 1);
   shieldCooldown = Math.max(0, shieldCooldown - 1);
 
   if (shieldRequested && shieldUnlocked && shieldCooldown === 0) {
@@ -631,16 +614,9 @@ function updatePlayer() {
   if (attackRequested && player.attackCooldown === 0) {
     player.attackTimer = 12;
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
-    player.attackMode =
-      requestedAttackType === "special" && specialWeaponUnlocked
-        ? "special"
-        : pogoUnlocked && !player.grounded && down
-          ? "down"
-          : "side";
-    if (player.attackMode === "special") specialCooldown = SPECIAL_COOLDOWN_FRAMES;
+    player.attackMode = pogoUnlocked && !player.grounded && down ? "down" : "side";
   }
   attackRequested = false;
-  requestedAttackType = "normal";
 
   // Horizontal movement directly sets velocity for a tight prototype feel.
   player.vx = 0;
@@ -1022,12 +998,6 @@ function draw() {
   // Keep the HTML status text in sync with the current game state.
   messageEl.textContent = game.message;
   healthEl.textContent = `${levels[currentLevelIndex].name} | Health ${Math.max(0, player.health)} | Boss ${Math.max(0, boss.health)}`;
-  let specialStatus = "Special not unlocked";
-  if (specialWeaponUnlocked && specialCooldown > 0) {
-    specialStatus = `Special cooldown ${Math.ceil(specialCooldown / 60)}s`;
-  } else if (specialWeaponUnlocked) {
-    specialStatus = "Special ready";
-  }
   let shieldStatus = "Shield locked";
   if (shieldUnlocked && player.shieldCounterTimer > 0) {
     shieldStatus = "Shield counter";
@@ -1038,7 +1008,7 @@ function draw() {
   } else if (shieldUnlocked) {
     shieldStatus = "Shield ready";
   }
-  specialEl.textContent = `${specialStatus} | ${shieldStatus}`;
+  abilityEl.textContent = shieldStatus;
 }
 
 // Main animation loop. requestAnimationFrame calls this around 60 times per
@@ -1066,16 +1036,6 @@ window.addEventListener("keydown", (event) => {
   if (code === "KeyR" || key === "r") resetGame();
   if ((code === "KeyJ" || key === "j") && !event.repeat) {
     attackRequested = true;
-    requestedAttackType = "normal";
-  }
-  if (
-    (code === "KeyK" || key === "k") &&
-    specialWeaponUnlocked &&
-    specialCooldown === 0 &&
-    !event.repeat
-  ) {
-    attackRequested = true;
-    requestedAttackType = "special";
   }
   if ((code === "KeyL" || key === "l") && shieldUnlocked && !event.repeat) {
     shieldRequested = true;
@@ -1120,9 +1080,7 @@ window.__platformerState = () => ({
   level: currentLevelIndex + 1,
   checkpointLevel: checkpointLevelIndex + 1,
   pogoUnlocked,
-  specialWeaponUnlocked,
   shieldUnlocked,
-  specialCooldown,
   shieldCooldown,
   pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
