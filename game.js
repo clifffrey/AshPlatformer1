@@ -136,7 +136,7 @@ const levels = [
   },
   {
     name: "Level 3",
-    message: "Level 3: final checkpoint. More shooters, tighter hazards, one last boss.",
+    message: "Level 3: final checkpoint. Tighter hazards, one last boss.",
     playerStart: { x: 54, y: 38 },
     platforms: [
       { x: 0, y: 508, w: 960, h: 32 },
@@ -163,7 +163,7 @@ const levels = [
     ],
     enemies: [
       { x: 380, y: 48, w: 28, h: 36, left: 290, right: 710, vx: 1.2, alive: true },
-      { x: 715, y: 160, w: 28, h: 36, left: 230, right: 825, vx: -1.25, alive: true, shooter: true, shootCooldown: 130 },
+      { x: 715, y: 160, w: 28, h: 36, left: 230, right: 825, vx: -1.25, alive: true },
       { x: 275, y: 284, w: 28, h: 36, left: 90, right: 690, vx: 1.25, alive: true },
       { x: 575, y: 394, w: 28, h: 36, left: 210, right: 630, vx: -1.15, alive: true },
     ],
