@@ -226,6 +226,7 @@ const levels = [
       health: 6,
       invincible: 0,
       swordAngle: 0.8,
+      swordMode: "side",
       alive: true,
     },
   },
@@ -371,6 +372,15 @@ function bossSwordBox() {
   const boss = game.boss;
   const centerX = boss.x + boss.w / 2;
   const centerY = boss.y + boss.h / 2;
+  if (boss.swordMode === "side") {
+    const direction = boss.vx >= 0 ? 1 : -1;
+    return {
+      x1: centerX,
+      y1: centerY,
+      x2: centerX + direction * BOSS_SWORD_LENGTH,
+      y2: centerY,
+    };
+  }
   return {
     x1: centerX,
     y1: centerY,
@@ -584,9 +594,9 @@ function updateEnemies() {
 
   const boss = game.boss;
   if (boss.alive) {
-    // The boss patrols and continuously rotates its sword.
+    // Most bosses rotate their sword; Level 4 uses a side-snapping sword.
     boss.x += boss.vx;
-    boss.swordAngle += 0.035;
+    if (boss.swordMode !== "side") boss.swordAngle += 0.035;
     boss.invincible = Math.max(0, boss.invincible - 1);
     if (boss.x < boss.left || boss.x + boss.w > boss.right) {
       boss.vx *= -1;
