@@ -26,6 +26,7 @@ const PROJECTILE_SPEED = 1.2;
 const PROJECTILE_RADIUS = 8;
 const SHOOTER_COOLDOWN = 230;
 const WALL_TRAP_PROJECTILE_SPEED = 2.1;
+const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -34,6 +35,7 @@ let lastTime = 0;
 let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let pogoUnlocked = false;
+let pendingLevelIndex = null;
 let game;
 
 function isHolding(...bindings) {
@@ -203,6 +205,7 @@ function cloneRects(rects) {
 // Loads one level and resets health, position, enemies, hazards, and boss.
 function startLevel(levelIndex) {
   currentLevelIndex = levelIndex;
+  pendingLevelIndex = null;
   const level = levels[currentLevelIndex];
   platforms = cloneRects(level.platforms);
   ladders = cloneRects(level.ladders);
@@ -251,10 +254,14 @@ function newGame() {
 }
 
 function completeLevel() {
-  if (currentLevelIndex === 1) pogoUnlocked = true;
   if (currentLevelIndex < levels.length - 1) {
     checkpointLevelIndex = currentLevelIndex + 1;
-    startLevel(checkpointLevelIndex);
+    pendingLevelIndex = checkpointLevelIndex;
+    if (currentLevelIndex === 1) pogoUnlocked = true;
+    game.boss.alive = false;
+    game.state = "transition";
+    game.transitionTimer = LEVEL_UNLOCK_TRANSITION_FRAMES;
+    game.message = `${levels[pendingLevelIndex].name} unlocked.`;
     return;
   }
   game.boss.alive = false;
@@ -467,7 +474,7 @@ function updatePlayer() {
   if (attackRequested && player.attackCooldown === 0) {
     player.attackTimer = 12;
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
-    player.attackMode = !player.grounded && down ? "down" : "side";
+    player.attackMode = pogoUnlocked && !player.grounded && down ? "down" : "side";
   }
   attackRequested = false;
 
@@ -619,6 +626,15 @@ function updateCombat() {
 // One simulation step. When the game is won or lost, updates stop but drawing
 // continues so the end overlay stays visible.
 function update() {
+  if (game.state === "transition") {
+    game.transitionTimer = Math.max(0, game.transitionTimer - 1);
+    if (game.transitionTimer === 0 && pendingLevelIndex !== null) {
+      const nextLevelIndex = pendingLevelIndex;
+      pendingLevelIndex = null;
+      startLevel(nextLevelIndex);
+    }
+    return;
+  }
   if (game.state !== "playing") return;
   updatePlayer();
   updateEnemies();
@@ -750,9 +766,15 @@ function draw() {
     ctx.fillStyle = "#f8fafc";
     ctx.font = "700 34px system-ui, sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText(game.state === "won" ? "Level Clear" : "Try Again", WIDTH / 2, HEIGHT / 2 - 12);
+    const overlayTitle =
+      game.state === "transition" ? game.message : game.state === "won" ? "Level Clear" : "Try Again";
+    ctx.fillText(overlayTitle, WIDTH / 2, HEIGHT / 2 - 12);
     ctx.font = "18px system-ui, sans-serif";
-    ctx.fillText("Press R or the Restart button", WIDTH / 2, HEIGHT / 2 + 28);
+    if (game.state === "transition") {
+      ctx.fillText("Get ready...", WIDTH / 2, HEIGHT / 2 + 28);
+    } else {
+      ctx.fillText("Press R or the Restart button", WIDTH / 2, HEIGHT / 2 + 28);
+    }
     ctx.textAlign = "left";
   }
 
@@ -821,6 +843,7 @@ window.__platformerState = () => ({
   level: currentLevelIndex + 1,
   checkpointLevel: checkpointLevelIndex + 1,
   pogoUnlocked,
+  pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
     x: Math.round(game.player.x),
     y: Math.round(game.player.y),
