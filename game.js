@@ -32,9 +32,10 @@ const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
 const BOSS_SIDE_SWORD_PAUSE_FRAMES = 24;
 const SPECIAL_COOLDOWN_FRAMES = 300;
-const SHIELD_ACTIVE_FRAMES = 18;
+const SHIELD_ACTIVE_FRAMES = 36;
 const SHIELD_COUNTER_FRAMES = 14;
 const SHIELD_CONE_LENGTH = 118;
+const SHIELD_COOLDOWN_FRAMES = 300;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -47,6 +48,7 @@ let pogoUnlocked = false;
 let specialWeaponUnlocked = false;
 let shieldUnlocked = false;
 let specialCooldown = 0;
+let shieldCooldown = 0;
 let shieldRequested = false;
 let pendingLevelIndex = null;
 let transitionMessages = [];
@@ -316,6 +318,7 @@ function newGame() {
   specialWeaponUnlocked = false;
   shieldUnlocked = false;
   specialCooldown = 0;
+  shieldCooldown = 0;
   shieldRequested = false;
   transitionMessages = [];
   startLevel(0);
@@ -604,10 +607,12 @@ function updatePlayer() {
   player.shieldTimer = Math.max(0, player.shieldTimer - 1);
   player.shieldCounterTimer = Math.max(0, player.shieldCounterTimer - 1);
   specialCooldown = Math.max(0, specialCooldown - 1);
+  shieldCooldown = Math.max(0, shieldCooldown - 1);
 
-  if (shieldRequested && shieldUnlocked) {
+  if (shieldRequested && shieldUnlocked && shieldCooldown === 0) {
     player.shieldTimer = SHIELD_ACTIVE_FRAMES;
     player.shieldDirection = player.facing;
+    shieldCooldown = SHIELD_COOLDOWN_FRAMES;
   }
   shieldRequested = false;
 
@@ -1005,6 +1010,8 @@ function draw() {
     shieldStatus = "Shield counter";
   } else if (shieldUnlocked && player.shieldTimer > 0) {
     shieldStatus = "Shield up";
+  } else if (shieldUnlocked && shieldCooldown > 0) {
+    shieldStatus = `Shield cooldown ${Math.ceil(shieldCooldown / 60)}s`;
   } else if (shieldUnlocked) {
     shieldStatus = "Shield ready";
   }
@@ -1093,6 +1100,7 @@ window.__platformerState = () => ({
   specialWeaponUnlocked,
   shieldUnlocked,
   specialCooldown,
+  shieldCooldown,
   pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
     x: Math.round(game.player.x),
