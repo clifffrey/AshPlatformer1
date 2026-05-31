@@ -30,6 +30,7 @@ const SHOOTER_COOLDOWN = 230;
 const WALL_TRAP_PROJECTILE_SPEED = 2.1;
 const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
+const BOSS_SIDE_SWORD_PAUSE_FRAMES = 24;
 const SPECIAL_COOLDOWN_FRAMES = 300;
 
 // Input and animation state that exists outside a single game reset.
@@ -230,12 +231,14 @@ const levels = [
       left: 520,
       right: 922,
       vx: -1.05,
+      speed: 1.05,
       health: 6,
       invincible: 0,
       swordAngle: 0.8,
       swordMode: "side",
       swordSide: -1,
       swordSideTimer: BOSS_SIDE_SWORD_SWAP_FRAMES,
+      swordPauseTimer: 0,
       alive: true,
     },
   },
@@ -631,21 +634,32 @@ function updateEnemies() {
   if (boss.alive) {
     // Most bosses rotate their sword; Level 4 uses a side-snapping sword.
     if (boss.swordMode === "side") {
-      boss.swordSideTimer = Math.max(0, (boss.swordSideTimer || BOSS_SIDE_SWORD_SWAP_FRAMES) - 1);
-      if (boss.swordSideTimer === 0) {
-        boss.swordSide = -(boss.swordSide || 1);
-        boss.swordSideTimer = BOSS_SIDE_SWORD_SWAP_FRAMES;
+      const bossSpeed = boss.speed || Math.abs(boss.vx);
+      if (boss.swordPauseTimer > 0) {
+        boss.swordPauseTimer -= 1;
+        boss.vx = 0;
+      } else {
+        boss.vx = bossSpeed * (boss.swordSide || 1);
+        boss.x += boss.vx;
+        const hitTurnaround = boss.x < boss.left || boss.x + boss.w > boss.right;
+        boss.swordSideTimer = Math.max(0, (boss.swordSideTimer || BOSS_SIDE_SWORD_SWAP_FRAMES) - 1);
+        if (hitTurnaround || boss.swordSideTimer === 0) {
+          boss.x = Math.max(boss.left, Math.min(boss.right - boss.w, boss.x));
+          boss.swordSide = -(boss.swordSide || 1);
+          boss.swordSideTimer = BOSS_SIDE_SWORD_SWAP_FRAMES;
+          boss.swordPauseTimer = BOSS_SIDE_SWORD_PAUSE_FRAMES;
+          boss.vx = 0;
+        }
       }
-      boss.vx = Math.abs(boss.vx) * (boss.swordSide || 1);
     } else {
       boss.swordAngle += 0.035;
+      boss.x += boss.vx;
+      if (boss.x < boss.left || boss.x + boss.w > boss.right) {
+        boss.vx *= -1;
+        boss.x = Math.max(boss.left, Math.min(boss.right - boss.w, boss.x));
+      }
     }
-    boss.x += boss.vx;
     boss.invincible = Math.max(0, boss.invincible - 1);
-    if (boss.x < boss.left || boss.x + boss.w > boss.right) {
-      boss.vx *= -1;
-      boss.x = Math.max(boss.left, Math.min(boss.right - boss.w, boss.x));
-    }
     // The boss body and the sword line are separate damage sources.
     if (rectsOverlap(playerHitbox, boss)) hurtPlayer(1);
     if (lineHitsRect(bossSwordBox(), playerHitbox, BOSS_SWORD_WIDTH)) hurtPlayer(1);
