@@ -168,7 +168,7 @@ const levels = [
       { x: 575, y: 394, w: 28, h: 36, left: 210, right: 630, vx: -1.15, alive: true },
     ],
     pressurePlates: [
-      { x: 790, y: 188, w: 50, h: 8, triggered: false, shooterIndex: 1 },
+      { x: 790, y: 188, w: 50, h: 8, triggered: false, shooterIndex: 2 },
       { x: 426, y: 312, w: 50, h: 8, triggered: false, shooterIndex: 0 },
     ],
     wallShooters: [
