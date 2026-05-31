@@ -35,6 +35,7 @@ const SHIELD_ACTIVE_FRAMES = 36;
 const SHIELD_COUNTER_FRAMES = 14;
 const SHIELD_CONE_LENGTH = 118;
 const SHIELD_COOLDOWN_FRAMES = 300;
+const SHIELD_PARRY_INVINCIBLE_FRAMES = 80;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -476,7 +477,7 @@ function shieldBlocks(source) {
   if (fromDirection !== player.shieldDirection) return false;
   player.shieldTimer = 0;
   player.shieldCounterTimer = SHIELD_COUNTER_FRAMES;
-  player.invincible = Math.max(player.invincible, 12);
+  player.invincible = Math.max(player.invincible, SHIELD_PARRY_INVINCIBLE_FRAMES);
   return true;
 }
 
