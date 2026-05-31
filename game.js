@@ -33,11 +33,14 @@ const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
 let attackRequested = false;
+let requestedAttackType = "normal";
 let lastTime = 0;
 let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let pogoUnlocked = false;
+let specialWeaponUnlocked = false;
 let pendingLevelIndex = null;
+let transitionMessages = [];
 let game;
 
 function isHolding(...bindings) {
@@ -295,6 +298,8 @@ function resetGame() {
 function newGame() {
   checkpointLevelIndex = 0;
   pogoUnlocked = false;
+  specialWeaponUnlocked = false;
+  transitionMessages = [];
   startLevel(0);
 }
 
@@ -302,13 +307,19 @@ function completeLevel() {
   if (currentLevelIndex < levels.length - 1) {
     checkpointLevelIndex = currentLevelIndex + 1;
     pendingLevelIndex = checkpointLevelIndex;
+    if (currentLevelIndex === 0) specialWeaponUnlocked = true;
+    transitionMessages =
+      currentLevelIndex === 0
+        ? ["Special weapon unlocked.", `${levels[pendingLevelIndex].name} unlocked.`]
+        : [
+            levels[pendingLevelIndex].name === "Level 4"
+              ? "Get ready for Level 4."
+              : `${levels[pendingLevelIndex].name} unlocked.`,
+          ];
     game.boss.alive = false;
     game.state = "transition";
     game.transitionTimer = LEVEL_UNLOCK_TRANSITION_FRAMES;
-    game.message =
-      levels[pendingLevelIndex].name === "Level 4"
-        ? "Get ready for Level 4."
-        : `${levels[pendingLevelIndex].name} unlocked.`;
+    game.message = transitionMessages.shift();
     return;
   }
   game.boss.alive = false;
@@ -358,6 +369,15 @@ function attackBox(player) {
       w: player.w + 24,
       h: 44,
       mode: "down",
+    };
+  }
+  if (player.attackMode === "special") {
+    return {
+      x: player.facing > 0 ? player.x + player.w : player.x - 70,
+      y: player.y + 15,
+      w: 70,
+      h: 10,
+      mode: "special",
     };
   }
   return {
@@ -530,9 +550,15 @@ function updatePlayer() {
   if (attackRequested && player.attackCooldown === 0) {
     player.attackTimer = 12;
     player.attackCooldown = PLAYER_ATTACK_COOLDOWN;
-    player.attackMode = pogoUnlocked && !player.grounded && down ? "down" : "side";
+    player.attackMode =
+      requestedAttackType === "special" && specialWeaponUnlocked
+        ? "special"
+        : pogoUnlocked && !player.grounded && down
+          ? "down"
+          : "side";
   }
   attackRequested = false;
+  requestedAttackType = "normal";
 
   // Horizontal movement directly sets velocity for a tight prototype feel.
   player.vx = 0;
@@ -693,9 +719,15 @@ function updateCombat() {
 function update() {
   if (game.state === "transition") {
     game.transitionTimer = Math.max(0, game.transitionTimer - 1);
+    if (game.transitionTimer === 0 && transitionMessages.length > 0) {
+      game.message = transitionMessages.shift();
+      game.transitionTimer = LEVEL_UNLOCK_TRANSITION_FRAMES;
+      return;
+    }
     if (game.transitionTimer === 0 && pendingLevelIndex !== null) {
       const nextLevelIndex = pendingLevelIndex;
       pendingLevelIndex = null;
+      transitionMessages = [];
       startLevel(nextLevelIndex);
     }
     return;
@@ -871,8 +903,13 @@ window.addEventListener("keydown", (event) => {
     event.preventDefault();
   }
   if (code === "KeyR" || key === "r") resetGame();
-  if ((code === "KeyJ" || code === "KeyK" || key === "j" || key === "k") && !event.repeat) {
+  if ((code === "KeyJ" || key === "j") && !event.repeat) {
     attackRequested = true;
+    requestedAttackType = "normal";
+  }
+  if ((code === "KeyK" || key === "k") && specialWeaponUnlocked && !event.repeat) {
+    attackRequested = true;
+    requestedAttackType = "special";
   }
   keys.add(code);
   keys.add(key);
@@ -914,6 +951,7 @@ window.__platformerState = () => ({
   level: currentLevelIndex + 1,
   checkpointLevel: checkpointLevelIndex + 1,
   pogoUnlocked,
+  specialWeaponUnlocked,
   pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
     x: Math.round(game.player.x),
