@@ -32,6 +32,9 @@ const LEVEL_UNLOCK_TRANSITION_FRAMES = 120;
 const BOSS_SIDE_SWORD_SWAP_FRAMES = 120;
 const BOSS_SIDE_SWORD_PAUSE_FRAMES = 24;
 const SPECIAL_COOLDOWN_FRAMES = 300;
+const SHIELD_ACTIVE_FRAMES = 18;
+const SHIELD_COUNTER_FRAMES = 14;
+const SHIELD_CONE_LENGTH = 118;
 
 // Input and animation state that exists outside a single game reset.
 const keys = new Set();
@@ -42,7 +45,9 @@ let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let pogoUnlocked = false;
 let specialWeaponUnlocked = false;
+let shieldUnlocked = false;
 let specialCooldown = 0;
+let shieldRequested = false;
 let pendingLevelIndex = null;
 let transitionMessages = [];
 let game;
@@ -260,6 +265,7 @@ function startLevel(levelIndex) {
   currentLevelIndex = levelIndex;
   pendingLevelIndex = null;
   if (currentLevelIndex >= 2) pogoUnlocked = true;
+  if (currentLevelIndex >= 3) shieldUnlocked = true;
   const level = levels[currentLevelIndex];
   platforms = cloneRects(level.platforms);
   ladders = cloneRects(level.ladders);
@@ -286,6 +292,9 @@ function startLevel(levelIndex) {
       attackCooldown: 0,
       attackMode: "side",
       jumpCooldown: 0,
+      shieldTimer: 0,
+      shieldCounterTimer: 0,
+      shieldDirection: 1,
     },
     enemies: cloneRects(level.enemies),
     projectiles: [],
@@ -305,7 +314,9 @@ function newGame() {
   checkpointLevelIndex = 0;
   pogoUnlocked = false;
   specialWeaponUnlocked = false;
+  shieldUnlocked = false;
   specialCooldown = 0;
+  shieldRequested = false;
   transitionMessages = [];
   startLevel(0);
 }
@@ -315,9 +326,12 @@ function completeLevel() {
     checkpointLevelIndex = currentLevelIndex + 1;
     pendingLevelIndex = checkpointLevelIndex;
     if (currentLevelIndex === 0) specialWeaponUnlocked = true;
+    if (currentLevelIndex === 2) shieldUnlocked = true;
     transitionMessages =
       currentLevelIndex === 0
         ? ["Special weapon unlocked.", `${levels[pendingLevelIndex].name} unlocked.`]
+        : currentLevelIndex === 2
+          ? ["Shield counter unlocked.", "Get ready for Level 4."]
         : [
             levels[pendingLevelIndex].name === "Level 4"
               ? "Get ready for Level 4."
@@ -449,6 +463,40 @@ function circleHitsRect(circle, rect) {
   return dx * dx + dy * dy <= circle.r * circle.r;
 }
 
+function sourceCenterX(source) {
+  if (!source) return null;
+  if ("x" in source && "w" in source) return source.x + source.w / 2;
+  if ("x" in source) return source.x;
+  if ("x1" in source && "x2" in source) return (source.x1 + source.x2) / 2;
+  return null;
+}
+
+function shieldBlocks(source) {
+  const player = game.player;
+  const incomingX = sourceCenterX(source);
+  if (!shieldUnlocked || player.shieldTimer <= 0 || incomingX === null) return false;
+  const playerCenterX = player.x + player.w / 2;
+  const fromDirection = incomingX >= playerCenterX ? 1 : -1;
+  if (fromDirection !== player.shieldDirection) return false;
+  player.shieldTimer = 0;
+  player.shieldCounterTimer = SHIELD_COUNTER_FRAMES;
+  player.invincible = Math.max(player.invincible, 12);
+  return true;
+}
+
+function shieldConeHitsRect(rect) {
+  const player = game.player;
+  if (player.shieldCounterTimer <= 0) return false;
+  const originX = player.x + player.w / 2;
+  const originY = player.y + player.h / 2;
+  const targetX = rect.x + rect.w / 2;
+  const targetY = rect.y + rect.h / 2;
+  const forwardDistance = (targetX - originX) * player.shieldDirection;
+  if (forwardDistance < 0 || forwardDistance > SHIELD_CONE_LENGTH) return false;
+  const coneHalfHeight = 18 + forwardDistance * 0.36;
+  return Math.abs(targetY - originY) <= coneHalfHeight;
+}
+
 // Purple shooters aim slowly moving shots at the player's current position.
 function spawnProjectile(enemy) {
   const player = game.player;
@@ -522,9 +570,10 @@ function moveAndCollide(entity) {
 }
 
 // Damage the player, add invincibility frames, and apply a knockback impulse.
-function hurtPlayer(amount) {
+function hurtPlayer(amount, source = null) {
   const player = game.player;
   if (player.invincible > 0 || game.state !== "playing") return;
+  if (shieldBlocks(source)) return;
   player.health -= amount;
   player.invincible = 80;
   player.vx = -player.facing * 7;
@@ -552,7 +601,15 @@ function updatePlayer() {
   player.attackTimer = Math.max(0, player.attackTimer - 1);
   player.invincible = Math.max(0, player.invincible - 1);
   player.jumpCooldown = Math.max(0, player.jumpCooldown - 1);
+  player.shieldTimer = Math.max(0, player.shieldTimer - 1);
+  player.shieldCounterTimer = Math.max(0, player.shieldCounterTimer - 1);
   specialCooldown = Math.max(0, specialCooldown - 1);
+
+  if (shieldRequested && shieldUnlocked) {
+    player.shieldTimer = SHIELD_ACTIVE_FRAMES;
+    player.shieldDirection = player.facing;
+  }
+  shieldRequested = false;
 
   // Attacks are triggered by a fresh keydown, not by holding the key.
   if (attackRequested && player.attackCooldown === 0) {
@@ -623,7 +680,7 @@ function updateEnemies() {
         enemy.shootCooldown = SHOOTER_COOLDOWN;
       }
     }
-    if (rectsOverlap(playerHitbox, enemy)) hurtPlayer(1);
+    if (rectsOverlap(playerHitbox, enemy)) hurtPlayer(1, enemy);
   }
 
   for (const spike of spikes) {
@@ -661,8 +718,9 @@ function updateEnemies() {
     }
     boss.invincible = Math.max(0, boss.invincible - 1);
     // The boss body and the sword line are separate damage sources.
-    if (rectsOverlap(playerHitbox, boss)) hurtPlayer(1);
-    if (lineHitsRect(bossSwordBox(), playerHitbox, BOSS_SWORD_WIDTH)) hurtPlayer(1);
+    if (rectsOverlap(playerHitbox, boss)) hurtPlayer(1, boss);
+    const swordHit = bossSwordBox();
+    if (lineHitsRect(swordHit, playerHitbox, BOSS_SWORD_WIDTH)) hurtPlayer(1, swordHit);
   }
 }
 
@@ -679,7 +737,7 @@ function updateProjectiles() {
     }
     if (circleHitsRect(projectile, playerDamageBox())) {
       projectile.hit = true;
-      hurtPlayer(1);
+      hurtPlayer(1, projectile);
     }
   }
 
@@ -707,19 +765,19 @@ function updatePressurePlates() {
 // the boss body, but it does not interact with the boss sword.
 function updateCombat() {
   const hit = attackBox(game.player);
-  if (!hit) return;
-
   let downAttackHit = false;
+
   for (const enemy of game.enemies) {
-    if (enemy.alive && rectsOverlap(hit, enemy)) {
+    if (!enemy.alive) continue;
+    if ((hit && rectsOverlap(hit, enemy)) || shieldConeHitsRect(enemy)) {
       enemy.alive = false;
-      downAttackHit = hit.mode === "down";
+      downAttackHit = hit?.mode === "down";
     }
   }
 
   const boss = game.boss;
-  if (boss.alive && boss.invincible === 0 && rectsOverlap(hit, boss)) {
-    downAttackHit = hit.mode === "down";
+  if (boss.alive && boss.invincible === 0 && ((hit && rectsOverlap(hit, boss)) || shieldConeHitsRect(boss))) {
+    downAttackHit = hit?.mode === "down";
     boss.health -= 1;
     boss.invincible = 24;
     boss.vx *= -1;
@@ -818,6 +876,42 @@ function drawProjectiles() {
   }
 }
 
+function drawShieldEffects() {
+  const player = game.player;
+  const centerX = player.x + player.w / 2;
+  const centerY = player.y + player.h / 2;
+  if (player.shieldTimer > 0) {
+    const shieldX = player.shieldDirection > 0 ? player.x + player.w + 5 : player.x - 5;
+    ctx.save();
+    ctx.strokeStyle = "#7dd3fc";
+    ctx.lineWidth = 5;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(shieldX, player.y + 5);
+    ctx.lineTo(shieldX, player.y + player.h - 5);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  if (player.shieldCounterTimer > 0) {
+    const endX = centerX + player.shieldDirection * SHIELD_CONE_LENGTH;
+    const topY = centerY - 60;
+    const bottomY = centerY + 60;
+    ctx.save();
+    ctx.fillStyle = "rgba(125, 211, 252, 0.28)";
+    ctx.strokeStyle = "#bae6fd";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY);
+    ctx.lineTo(endX, topY);
+    ctx.lineTo(endX, bottomY);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
 // Render the full scene from scratch every frame.
 function draw() {
   ctx.clearRect(0, 0, WIDTH, HEIGHT);
@@ -874,6 +968,7 @@ function draw() {
   }
 
   // Draw the player's sword only during the active attack frames.
+  drawShieldEffects();
   const sword = attackBox(player);
   if (sword) drawRect(sword, "#dfe7ef");
 
@@ -899,13 +994,21 @@ function draw() {
   // Keep the HTML status text in sync with the current game state.
   messageEl.textContent = game.message;
   healthEl.textContent = `${levels[currentLevelIndex].name} | Health ${Math.max(0, player.health)} | Boss ${Math.max(0, boss.health)}`;
-  if (!specialWeaponUnlocked) {
-    specialEl.textContent = "Special not unlocked";
-  } else if (specialCooldown > 0) {
-    specialEl.textContent = `Special cooldown ${Math.ceil(specialCooldown / 60)}s`;
-  } else {
-    specialEl.textContent = "Special ready";
+  let specialStatus = "Special not unlocked";
+  if (specialWeaponUnlocked && specialCooldown > 0) {
+    specialStatus = `Special cooldown ${Math.ceil(specialCooldown / 60)}s`;
+  } else if (specialWeaponUnlocked) {
+    specialStatus = "Special ready";
   }
+  let shieldStatus = "Shield locked";
+  if (shieldUnlocked && player.shieldCounterTimer > 0) {
+    shieldStatus = "Shield counter";
+  } else if (shieldUnlocked && player.shieldTimer > 0) {
+    shieldStatus = "Shield up";
+  } else if (shieldUnlocked) {
+    shieldStatus = "Shield ready";
+  }
+  specialEl.textContent = `${specialStatus} | ${shieldStatus}`;
 }
 
 // Main animation loop. requestAnimationFrame calls this around 60 times per
@@ -943,6 +1046,9 @@ window.addEventListener("keydown", (event) => {
   ) {
     attackRequested = true;
     requestedAttackType = "special";
+  }
+  if ((code === "KeyL" || key === "l") && shieldUnlocked && !event.repeat) {
+    shieldRequested = true;
   }
   keys.add(code);
   keys.add(key);
@@ -985,6 +1091,7 @@ window.__platformerState = () => ({
   checkpointLevel: checkpointLevelIndex + 1,
   pogoUnlocked,
   specialWeaponUnlocked,
+  shieldUnlocked,
   specialCooldown,
   pendingLevel: pendingLevelIndex === null ? null : pendingLevelIndex + 1,
   player: {
@@ -992,6 +1099,8 @@ window.__platformerState = () => ({
     y: Math.round(game.player.y),
     health: game.player.health,
     attackTimer: game.player.attackTimer,
+    shieldTimer: game.player.shieldTimer,
+    shieldCounterTimer: game.player.shieldCounterTimer,
   },
   boss: {
     health: game.boss.health,
