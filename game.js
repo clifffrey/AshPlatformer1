@@ -442,6 +442,26 @@ function lineHitsRect(line, rect, width) {
   return false;
 }
 
+function rectCenter(rect) {
+  return {
+    x: rect.x + rect.w / 2,
+    y: rect.y + rect.h / 2,
+  };
+}
+
+function attackHasClearPath(hit, target) {
+  if (!hit || hit.mode !== "down") return true;
+  const player = game.player;
+  const targetCenter = rectCenter(target);
+  const attackLine = {
+    x1: player.x + player.w / 2,
+    y1: player.y + player.h,
+    x2: targetCenter.x,
+    y2: targetCenter.y,
+  };
+  return !platforms.some((platform) => lineHitsRect(attackLine, platform, 6));
+}
+
 // Circle-vs-rectangle overlap for enemy projectile damage.
 function circleHitsRect(circle, rect) {
   const nearestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.w));
@@ -763,26 +783,29 @@ function updateCombat() {
 
   for (const projectile of game.projectiles) {
     if (projectile.hit) continue;
-    const hitByAttack = hit && circleHitsRect(projectile, hit);
-    const hitByShieldCone = shieldConeHitsRect(projectileHitbox(projectile));
+    const projectileBox = projectileHitbox(projectile);
+    const hitByAttack = hit && circleHitsRect(projectile, hit) && attackHasClearPath(hit, projectileBox);
+    const hitByShieldCone = shieldConeHitsRect(projectileBox);
     if (hitByAttack || hitByShieldCone) {
       projectile.health -= 1;
       projectile.hit = projectile.health <= 0;
-      downAttackHit = hitByAttack && hit?.mode === "down";
+      downAttackHit = downAttackHit || (hitByAttack && hit?.mode === "down");
     }
   }
 
   for (const enemy of game.enemies) {
     if (!enemy.alive) continue;
-    if ((hit && rectsOverlap(hit, enemy)) || shieldConeHitsRect(enemy)) {
+    const hitByAttack = hit && rectsOverlap(hit, enemy) && attackHasClearPath(hit, enemy);
+    if (hitByAttack || shieldConeHitsRect(enemy)) {
       enemy.alive = false;
-      downAttackHit = hit?.mode === "down";
+      downAttackHit = downAttackHit || (hitByAttack && hit?.mode === "down");
     }
   }
 
   const boss = game.boss;
-  if (boss.alive && boss.invincible === 0 && ((hit && rectsOverlap(hit, boss)) || shieldConeHitsRect(boss))) {
-    downAttackHit = hit?.mode === "down";
+  const bossHitByAttack = hit && rectsOverlap(hit, boss) && attackHasClearPath(hit, boss);
+  if (boss.alive && boss.invincible === 0 && (bossHitByAttack || shieldConeHitsRect(boss))) {
+    downAttackHit = downAttackHit || (bossHitByAttack && hit?.mode === "down");
     boss.health -= 1;
     boss.invincible = 24;
     boss.vx *= -1;
