@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Platformer Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hud" aria-label="Game status">
+        <div>
+          <strong>Platformer Prototype</strong>
+          <span>Move: Arrow keys / A D</span>
+          <span>Jump: Space / W / Up</span>
+          <span>Sword: J / K</span>
+        </div>
+        <div class="actions">
+          <button id="level2" type="button">Level 2</button>
+          <button id="level3" type="button">Level 3</button>
+          <button id="new-game" type="button">New Game</button>
+          <button id="restart" type="button">Restart</button>
+        </div>
+      </section>
+
+      <canvas id="game" width="960" height="540" aria-label="Playable platformer game"></canvas>
+
+      <section class="status" aria-live="polite">
+        <span id="message">Start top-left, work around the level, and defeat the boss at bottom-right.</span>
+        <span id="health"></span>
+      </section>
+    </main>
+
+    <script src="game.js?v=35"></script>
+  </body>
+</html>
