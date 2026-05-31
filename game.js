@@ -466,6 +466,15 @@ function circleHitsRect(circle, rect) {
   return dx * dx + dy * dy <= circle.r * circle.r;
 }
 
+function projectileHitbox(projectile) {
+  return {
+    x: projectile.x - projectile.r,
+    y: projectile.y - projectile.r,
+    w: projectile.r * 2,
+    h: projectile.r * 2,
+  };
+}
+
 function sourceCenterX(source) {
   if (!source) return null;
   if ("x" in source && "w" in source) return source.x + source.w / 2;
@@ -516,6 +525,7 @@ function spawnProjectile(enemy) {
     r: PROJECTILE_RADIUS,
     vx: (dx / length) * PROJECTILE_SPEED,
     vy: (dy / length) * PROJECTILE_SPEED,
+    health: 1,
   });
 }
 
@@ -532,6 +542,7 @@ function spawnWallTrapProjectile(shooter) {
     r: PROJECTILE_RADIUS,
     vx: (dx / length) * WALL_TRAP_PROJECTILE_SPEED,
     vy: (dy / length) * WALL_TRAP_PROJECTILE_SPEED,
+    health: 1,
     color: "#ff6b6b",
     safeFrames: 10,
   });
@@ -733,6 +744,7 @@ function updateEnemies() {
 // visible level area.
 function updateProjectiles() {
   for (const projectile of game.projectiles) {
+    if (projectile.hit) continue;
     projectile.x += projectile.vx;
     projectile.y += projectile.vy;
     projectile.safeFrames = Math.max(0, (projectile.safeFrames || 0) - 1);
@@ -766,11 +778,22 @@ function updatePressurePlates() {
   }
 }
 
-// Resolve player sword hits. The player's attack can destroy enemies and damage
-// the boss body, but it does not interact with the boss sword.
+// Resolve player sword hits. Player attacks can destroy enemies, projectiles,
+// and damage the boss body, but they do not interact with the boss sword.
 function updateCombat() {
   const hit = attackBox(game.player);
   let downAttackHit = false;
+
+  for (const projectile of game.projectiles) {
+    if (projectile.hit) continue;
+    const hitByAttack = hit && circleHitsRect(projectile, hit);
+    const hitByShieldCone = shieldConeHitsRect(projectileHitbox(projectile));
+    if (hitByAttack || hitByShieldCone) {
+      projectile.health -= 1;
+      projectile.hit = projectile.health <= 0;
+      downAttackHit = hitByAttack && hit?.mode === "down";
+    }
+  }
 
   for (const enemy of game.enemies) {
     if (!enemy.alive) continue;
