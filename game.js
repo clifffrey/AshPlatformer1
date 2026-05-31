@@ -172,7 +172,7 @@ const levels = [
       { x: 426, y: 312, w: 50, h: 8, triggered: false, shooterIndex: 0 },
     ],
     wallShooters: [
-      { x: 78, y: 395 },
+      { x: 78, y: 262 },
       { x: 848, y: 262 },
       { x: 912, y: 145 },
     ],
