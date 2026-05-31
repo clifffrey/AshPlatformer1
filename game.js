@@ -35,6 +35,10 @@ let currentLevelIndex = 0;
 let checkpointLevelIndex = 0;
 let game;
 
+function isHolding(...bindings) {
+  return bindings.some((binding) => keys.has(binding));
+}
+
 // Level definitions. Each level owns its route geometry, hazards, enemies, and
 // boss. The loader below copies this data into mutable runtime objects.
 const levels = [
@@ -444,11 +448,11 @@ function hurtPlayer(amount) {
 function updatePlayer() {
   const player = game.player;
   const wasGrounded = player.grounded;
-  const left = keys.has("arrowleft") || keys.has("a");
-  const right = keys.has("arrowright") || keys.has("d");
-  const up = keys.has("arrowup") || keys.has("w");
-  const down = keys.has("arrowdown") || keys.has("s");
-  const jump = keys.has(" ") || keys.has("arrowup") || keys.has("w");
+  const left = isHolding("ArrowLeft", "KeyA", "a");
+  const right = isHolding("ArrowRight", "KeyD", "d");
+  const up = isHolding("ArrowUp", "KeyW", "w");
+  const down = isHolding("ArrowDown", "KeyS", "s");
+  const jump = isHolding("Space", " ", "ArrowUp", "KeyW", "w");
 
   // Cooldowns tick down once per frame while the game is running.
   player.attackCooldown = Math.max(0, player.attackCooldown - 1);
@@ -765,20 +769,28 @@ function loop(time) {
   requestAnimationFrame(loop);
 }
 
-// Keyboard input. Movement keys stay in the keys Set while held. Attack uses a
-// one-frame request so holding J/K cannot rapid-fire.
+// Keyboard input. Store both the physical key code and typed key value so
+// controls work across layouts while still honoring the current layout letters.
 window.addEventListener("keydown", (event) => {
   const key = event.key.toLowerCase();
-  if (["arrowleft", "arrowright", "arrowup", "arrowdown", " "].includes(key)) {
+  const code = event.code;
+  if (
+    ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Space"].includes(code) ||
+    ["arrowleft", "arrowright", "arrowup", "arrowdown", " "].includes(key)
+  ) {
     event.preventDefault();
   }
-  if (key === "r") resetGame();
-  if ((key === "j" || key === "k") && !event.repeat) attackRequested = true;
+  if (code === "KeyR" || key === "r") resetGame();
+  if ((code === "KeyJ" || code === "KeyK" || key === "j" || key === "k") && !event.repeat) {
+    attackRequested = true;
+  }
+  keys.add(code);
   keys.add(key);
 });
 
 // Release held movement keys.
 window.addEventListener("keyup", (event) => {
+  keys.delete(event.code);
   keys.delete(event.key.toLowerCase());
 });
 
