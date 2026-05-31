@@ -206,6 +206,7 @@ function cloneRects(rects) {
 function startLevel(levelIndex) {
   currentLevelIndex = levelIndex;
   pendingLevelIndex = null;
+  if (currentLevelIndex >= 2) pogoUnlocked = true;
   const level = levels[currentLevelIndex];
   platforms = cloneRects(level.platforms);
   ladders = cloneRects(level.ladders);
@@ -257,7 +258,6 @@ function completeLevel() {
   if (currentLevelIndex < levels.length - 1) {
     checkpointLevelIndex = currentLevelIndex + 1;
     pendingLevelIndex = checkpointLevelIndex;
-    if (currentLevelIndex === 1) pogoUnlocked = true;
     game.boss.alive = false;
     game.state = "transition";
     game.transitionTimer = LEVEL_UNLOCK_TRANSITION_FRAMES;
